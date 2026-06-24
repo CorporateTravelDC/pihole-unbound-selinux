@@ -1,0 +1,45 @@
+# /home/corporatetraveldc/.config/containers/systemd/openwebui.container
+#
+# OpenWebUI -- browser-based chat UI for Ollama
+#
+# Access:
+#   Tailscale: http://YOUR_TAILSCALE_IP:3000
+#   CF tunnel:  https://openwebui.YOUR_DOMAIN (stub, wire later)
+#
+# Ollama backend: http://127.0.0.1:11434 (loopback, never public)
+#
+# Deploy:
+#   cp openwebui/openwebui.container \
+#      ~/.config/containers/systemd/openwebui.container
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now openwebui.container
+
+[Unit]
+Description=OpenWebUI -- Ollama browser interface
+After=ollama.service network-online.target
+Wants=network-online.target
+
+[Container]
+Image=ghcr.io/open-webui/open-webui:main
+ContainerName=openwebui
+AutoUpdate=registry
+
+# Port -- Tailscale only, firewalld gates external access
+PublishPort=3000:8080
+
+# Persistent data
+Volume=/var/lib/openwebui:/app/backend/data:Z
+
+# Ollama backend -- loopback on host
+Environment=OLLAMA_BASE_URL=http://host.containers.internal:11434
+
+# Security
+NoNewPrivileges=true
+
+[Service]
+Restart=always
+RestartSec=10
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target
