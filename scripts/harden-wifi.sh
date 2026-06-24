@@ -256,3 +256,30 @@ echo ""
 echo "  Next: sudo reboot"
 echo "  After reboot, wait 30s then: ping -c3 google.com"
 echo "  Expected: resolves without any manual intervention"
+
+# ---------------------------------------------------------------------------
+# WiFi Step 8 -- Brave Browser + Claude in Chrome (optional)
+# ---------------------------------------------------------------------------
+echo "--- WiFi Step 8: Brave Browser ---"
+BRAVE_INSTALL="$(dirname "$0")/../brave/install-brave.sh"
+if [[ -f "$BRAVE_INSTALL" ]]; then
+    read -r -p "[?] Install Brave Browser with Claude in Chrome support? [y/N] " REPLY
+    if [[ "${REPLY,,}" == "y" ]]; then
+        if [[ -n "${SERVICE_USER:-}" ]] && id "$SERVICE_USER" &>/dev/null; then
+            bash "$BRAVE_INSTALL"
+            # Deploy flags as service user
+            sudo -u "$SERVICE_USER" cp \
+                "$(dirname "$0")/../brave/brave-flags.conf" \
+                "/home/$SERVICE_USER/.config/brave-flags.conf"
+            echo "[OK]  Brave installed and configured for $SERVICE_USER"
+        else
+            bash "$BRAVE_INSTALL"
+            echo "[OK]  Brave installed -- deploy flags manually:"
+            echo "      cp brave/brave-flags.conf ~/.config/brave-flags.conf"
+        fi
+    else
+        echo "[SKIP] Brave install skipped"
+    fi
+else
+    echo "[SKIP] brave/install-brave.sh not found"
+fi
