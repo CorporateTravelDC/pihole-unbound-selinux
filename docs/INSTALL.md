@@ -1,205 +1,109 @@
-# INSTALL.md
-# pihole-unbound-selinux -- step-by-step install guide
-# Fedora 44 -- x86_64, aarch64, armhfp
+# Installation Guide -- pihole-unbound-selinux-internal
 
 ## Prerequisites
 
-- Fedora 44 installed and booted
-- SSH key-based access confirmed (harden.sh disables password auth)
-- Tailscale installed and connected (`tailscale up`)
-- Note your Tailscale IP: `tailscale ip -4`
+- Fedora 43+ aarch64 (Pi 5) or x86_64
+- SELinux enforcing
+- SSH key-based login configured and tested
+- Pi-hole v6.x installed
+- Tailscale installed and authenticated
 
-## 0. Replace placeholders
+## Install Order
 
-Before deploying any file from this repo, substitute:
+Run these steps in order. Each step depends on the previous.
 
-| Placeholder | Value |
-|---|---|
-| `YOUR_TAILSCALE_IP` | Output of `tailscale ip -4` |
-| `YOUR_TAILSCALE_IFACE` | Usually `tailscale0` (confirm: `ip link show`) |
-| `YOUR_HOSTNAME` | `hostname -s` |
-| `YOUR_ADMIN_USER` | Your non-root admin user |
-
-## 1. Install Fedora packages
-
-```bash
-sudo dnf install -y \
-  unbound \
-  policycoreutils-python-utils \
-  checkpolicy \
-  firewalld \
-  fail2ban
-```
-
-## 2. Relax SELinux for install
-
-At the GRUB menu, press `e`, find the `linux` line, append `enforcing=0`,
-then press `Ctrl+X` to boot. This is a one-time-boot parameter.
-
-Or if already booted into an enforcing system:
-
-```bash
-sudo setenforce 0
-```
-
-## 3. Install georou/pihole-selinux
-
-Required before Pi-hole installer runs:
-
-```
-https://github.com/georou/pihole-selinux
-```
-
-Follow that repo's instructions. Confirm the module loads:
-
-```bash
-sudo semodule -l | grep -i pihole
-```
-
-## 4. Install Pi-hole
-
-```bash
-curl -sSL https://install.pi-hole.net | bash
-```
-
-During the interactive installer:
-- Select `Custom` DNS and enter `127.0.0.1#5335` (Unbound)
-- Select the Tailscale interface (`YOUR_TAILSCALE_IFACE`) as the listening interface
-
-## 5. Deploy configs
-
-```bash
-sudo cp pihole/pihole.toml /etc/pihole/pihole.toml
-sudo cp unbound/unbound.conf /etc/unbound/unbound.conf
-```
-
-Initialize Unbound root trust anchor and hints:
-
-```bash
-sudo unbound-anchor -a /var/lib/unbound/root.key
-sudo curl -o /var/lib/unbound/root.hints https://www.internic.net/domain/named.root
-sudo chown unbound:unbound /var/lib/unbound/root.key /var/lib/unbound/root.hints
-```
-
-Enable and start Unbound:
-
-```bash
-sudo systemctl enable --now unbound
-```
-
-Restart Pi-hole FTL:
-
-```bash
-sudo systemctl restart pihole-FTL
-```
-
-## 6. Apply SELinux policy
+### 1. Apply SELinux policies
 
 ```bash
 sudo bash selinux/apply-selinux-policy.sh
 sudo bash selinux/label-dns-port.sh
 ```
 
-Verify Unbound can bind port 5335:
+### 2. Deploy Unbound config
 
 ```bash
-sudo systemctl status unbound
-dig @127.0.0.1 -p 5335 google.com
+sudo cp unbound/unbound.conf /etc/unbound/unbound.conf
+sudo systemctl enable --now unbound-anchor.timer
+sudo unbound-anchor -a /var/lib/unbound/root.key
+sudo systemctl enable --now unbound
 ```
 
-## 7. Harden the host
+### 3. Deploy systemd units
 
-Confirm SSH key access works in a separate session before running this step.
+```bash
+sudo mkdir -p /etc/systemd/system/unbound.service.d
+sudo cp systemd/unbound.service.d-10-tailscale.conf \
+     /etc/systemd/system/unbound.service.d/10-tailscale.conf
+sudo cp systemd/unbound-anchor-refresh.service \
+     /etc/systemd/system/unbound-anchor-refresh.service
+sudo systemctl daemon-reload
+sudo systemctl enable unbound-anchor-refresh.service
+```
+
+### 4. Deploy NetworkManager fixes
+
+```bash
+sudo cp networkmanager/no-connectivity-check.conf \
+     /etc/NetworkManager/conf.d/no-connectivity-check.conf
+sudo bash networkmanager/fix-wifi-profiles.sh
+```
+
+**WARNING:** Do NOT restart NetworkManager manually after this step.
+Changes apply on next reboot. Restarting NM drops SSH sessions and
+triggers Unbound race conditions.
+
+### 5. Deploy GDM config (desktop hosts only)
+
+```bash
+sudo cp gdm/custom.conf /etc/gdm/custom.conf
+```
+
+### 6. Run harden.sh
 
 ```bash
 sudo bash scripts/harden.sh
 ```
 
-Review the flags:
+### 7. Reboot and verify
 
 ```bash
-sudo bash scripts/harden.sh --help   # lists flags
-sudo bash scripts/harden.sh --dry-run  # preview without applying
-```
-
-## 8. Restore SELinux enforcing + relabel
-
-```bash
-sudo setenforce 1
-sudo touch /.autorelabel
 sudo reboot
+# After boot -- wait 30 seconds for anchor refresh to settle
+ping -c3 google.com
+systemctl status unbound pihole-FTL tailscaled
+ip route show
 ```
 
-After reboot, verify:
+Expected: all three services active, default gateway present, DNS resolving.
 
-```bash
-getenforce
-# Expected: Enforcing
+## Known Issues and Fixes
 
-dig @127.0.0.1 google.com
-# Expected: valid answer via Pi-hole -> Unbound
+### Unbound SERVFAIL after boot
 
-sudo systemctl status pihole-FTL unbound
-# Expected: both active (running)
-```
+Caused by DNSSEC trust anchor loading before internet is available.
+Fixed by `unbound-anchor-refresh.service` which fires 5 seconds after
+boot, refreshes the anchor, and restarts Unbound. Takes ~30 seconds
+from boot to full DNS resolution. This is expected and normal.
 
-## 9. Verify DNS chain
+### NM marks WiFi "limited" / browsers show offline
 
-```bash
-# Test Pi-hole (port 53)
-dig @YOUR_TAILSCALE_IP google.com
+Caused by NM connectivity check firing before Pi-hole/Unbound are ready.
+Fixed by `no-connectivity-check.conf`. If browsers still show offline
+after this fix is applied, reboot -- do not cycle NM manually.
 
-# Test Unbound directly (port 5335)
-dig @127.0.0.1 -p 5335 google.com +dnssec
+### WiFi gets IP but no default gateway after reboot
 
-# Confirm DNSSEC validation
-dig @127.0.0.1 -p 5335 dnssec-failed.org
-# Expected: SERVFAIL (DNSSEC validation failure -- correct behavior)
-```
+Caused by `ipv4.ignore-auto-routes=yes` on NM WiFi profiles.
+Fixed by `fix-wifi-profiles.sh`. Run once per new WiFi network added.
 
-## Troubleshooting
+### Claude Desktop blank grey window on Pi 5
 
-### Unbound fails to start -- permission denied on port 5335
+Caused by Electron's Wayland backend failing on BCM2712 aarch64.
+Fixed by `WaylandEnable=false` in `/etc/gdm/custom.conf`.
+Requires reboot to take effect.
 
-```bash
-sudo semanage port -l | grep 5335
-# If missing, re-run: sudo bash selinux/label-dns-port.sh
-```
+### Unbound fails to bind: "cannot assign requested address"
 
-### Pi-hole FTL crashes at start
-
-Check that georou/pihole-selinux module is loaded:
-
-```bash
-sudo semodule -l | grep -i pihole
-```
-
-If not, install it and restart:
-
-```bash
-sudo systemctl restart pihole-FTL
-```
-
-### resolv.conf reverted
-
-resolv.conf is set immutable by harden.sh. If something reverted it:
-
-```bash
-sudo chattr +i /etc/resolv.conf
-```
-
-Ensure systemd-resolved is still masked:
-
-```bash
-systemctl status systemd-resolved
-# Expected: masked
-```
-
-### AVC denials after relabel
-
-```bash
-sudo ausearch -m avc -ts recent | audit2allow
-```
-
-If denials relate to Pi-hole or Unbound, check the georou/pihole-selinux module version
-and the `.te` files in `selinux/` in this repo.
+Caused by `interface: 100.94.80.100` in unbound.conf -- Tailscale IP
+is not assigned at Unbound start time. Fixed by removing that interface
+line. Unbound now binds to loopback only.
