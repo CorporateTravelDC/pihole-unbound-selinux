@@ -65,6 +65,42 @@ echo "[INFO] Dry run: $DRY_RUN"
 echo ""
 
 # ---------------------------------------------------------------------------
+# Step 0 -- User group membership (MUST run before hardening)
+# Ensures the service user has access to DRM/GPU devices and audio.
+# Required for X11, Electron apps (Claude Desktop), and any GPU-adjacent
+# workload. Group membership takes effect on next login.
+#
+# WHY THIS IS STEP 0:
+#   Hardening steps that relabel the filesystem or tighten SELinux policy
+#   can make group membership changes harder to diagnose if applied after.
+#   Adding groups first ensures a clean baseline before any policy changes.
+# ---------------------------------------------------------------------------
+echo "--- Step 0: User group membership ---"
+
+# Detect the primary non-root user if not already known
+if [[ -z "${SERVICE_USER:-}" ]]; then
+    SERVICE_USER="$(logname 2>/dev/null || id -un 1000 2>/dev/null || echo '')"
+fi
+
+# Groups required for X11, DRM, GPU, audio, input
+REQUIRED_GROUPS="video render audio input seat"
+
+if [[ -n "$SERVICE_USER" ]] && id "$SERVICE_USER" &>/dev/null; then
+    for GRP in $REQUIRED_GROUPS; do
+        if getent group "$GRP" &>/dev/null; then
+            run usermod -aG "$GRP" "$SERVICE_USER"
+            echo "[OK]  Added $SERVICE_USER to group: $GRP"
+        else
+            echo "[SKIP] Group $GRP does not exist on this system"
+        fi
+    done
+    echo "[INFO] Group changes take effect on next login for $SERVICE_USER"
+else
+    echo "[WARN] Could not detect service user -- set SERVICE_USER= and re-run"
+    echo "       Example: sudo SERVICE_USER=corporatetraveldc bash scripts/harden.sh"
+fi
+
+# ---------------------------------------------------------------------------
 # SELinux -- drop to permissive for duration of hardening script
 # Restored at end after policy is confirmed good
 # ---------------------------------------------------------------------------
