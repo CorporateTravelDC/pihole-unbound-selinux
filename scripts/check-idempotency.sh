@@ -161,22 +161,6 @@ grep -q "WaylandEnable=false" /etc/gdm/custom.conf 2>/dev/null && \
     warn "Claude Desktop autostart missing -- run: bash claude-desktop/install-claude-desktop.sh"
 
 # ---------------------------------------------------------------------------
-# Ollama + OpenWebUI
-# ---------------------------------------------------------------------------
-echo ""
-echo "--- Ollama + OpenWebUI ---"
-
-command -v ollama &>/dev/null && ok "Ollama installed" || warn "Ollama not installed -- run: bash ollama/install-ollama.sh"
-
-systemctl is-active ollama &>/dev/null && ok "Ollama service active" || warn "Ollama service not active"
-
-ollama list 2>/dev/null | grep -q "qwen3" && ok "Qwen3:8b model present" || warn "Qwen3:8b not pulled -- run: ollama pull qwen3:8b"
-
-systemctl --user is-active openwebui.container &>/dev/null && \
-    ok "OpenWebUI container active" || \
-    warn "OpenWebUI not running -- run: bash openwebui/install-openwebui.sh"
-
-# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""
