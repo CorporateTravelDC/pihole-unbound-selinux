@@ -307,3 +307,44 @@ if [[ -f /.autorelabel ]]; then
 echo ""
 echo "  [WARN] /.autorelabel present -- reboot required"
 fi
+
+# ---------------------------------------------------------------------------
+# Step 7 -- NetworkManager WiFi profile routing fix
+# ---------------------------------------------------------------------------
+echo "--- Step 7: NetworkManager WiFi profile fix ---"
+
+ALL_WIFI=$(nmcli -t -f NAME,TYPE connection show | grep ':wifi$' | cut -d: -f1 2>/dev/null || true)
+if [ -n "$ALL_WIFI" ]; then
+    while IFS= read -r PROFILE; do
+        run nmcli connection modify "$PROFILE" ipv4.ignore-auto-routes no
+        run nmcli connection modify "$PROFILE" ipv4.never-default no
+        run nmcli connection modify "$PROFILE" ipv4.route-metric 200
+        echo "[OK]  Fixed NM profile: $PROFILE"
+    done <<< "$ALL_WIFI"
+else
+    echo "[INFO] No WiFi profiles found -- skipping"
+fi
+
+# NM connectivity check -- disable to prevent browser offline state
+run mkdir -p /etc/NetworkManager/conf.d
+run tee /etc/NetworkManager/conf.d/no-connectivity-check.conf > /dev/null << 'NMCONF'
+[connectivity]
+enabled=false
+NMCONF
+echo "[OK]  NM connectivity check disabled"
+echo "[WARN] Do NOT restart NetworkManager -- changes apply on next reboot or reconnect"
+
+# ---------------------------------------------------------------------------
+# Step 8 -- GDM X11 forced (Electron/aarch64 Wayland workaround)
+# ---------------------------------------------------------------------------
+echo "--- Step 8: GDM Wayland disable ---"
+if [ -f /etc/gdm/custom.conf ]; then
+    if grep -q "WaylandEnable" /etc/gdm/custom.conf; then
+        run sed -i 's/.*WaylandEnable.*/WaylandEnable=false/' /etc/gdm/custom.conf
+    else
+        run sed -i '/\[daemon\]/a WaylandEnable=false' /etc/gdm/custom.conf
+    fi
+    echo "[OK]  WaylandEnable=false set in /etc/gdm/custom.conf"
+else
+    echo "[WARN] /etc/gdm/custom.conf not found -- GDM may not be installed"
+fi

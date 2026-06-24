@@ -1,0 +1,30 @@
+# /etc/systemd/system/unbound-anchor-refresh.service
+#
+# PURPOSE:
+#   Fires once per boot, 5 seconds after Unbound starts, to refresh
+#   the DNSSEC root trust anchor against live internet and restart
+#   Unbound with a valid anchor.
+#
+#   This solves the chicken-and-egg problem where Unbound starts before
+#   internet is fully available, loads a stale anchor, and returns
+#   SERVFAIL for all DNSSEC-signed domains.
+#
+# DEPLOY:
+#   sudo cp systemd/unbound-anchor-refresh.service \
+#        /etc/systemd/system/unbound-anchor-refresh.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable unbound-anchor-refresh.service
+
+[Unit]
+Description=Refresh Unbound DNSSEC anchor after network is up
+After=network-online.target unbound.service
+Wants=network-online.target
+Requires=unbound.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'sleep 5 && /usr/sbin/unbound-anchor -a /var/lib/unbound/root.key; /usr/bin/systemctl restart unbound'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
