@@ -1,0 +1,18 @@
+# ~/.config/autostart/claude-desktop.desktop
+#
+# PURPOSE:
+#   GNOME autostart entry for Claude Desktop on Pi 5.
+#   Launches Claude Desktop automatically when the GNOME session starts,
+#   with the correct Wayland flags for aarch64 BCM2712.
+#
+# DEPLOY:
+#   mkdir -p ~/.config/autostart
+#   cp claude-desktop/claude-desktop.desktop ~/.config/autostart/claude-desktop.desktop
+
+[Desktop Entry]
+Type=Application
+Name=Claude Desktop
+Exec=claude-desktop --ozone-platform=wayland --enable-features=WaylandWindowDecorations
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true

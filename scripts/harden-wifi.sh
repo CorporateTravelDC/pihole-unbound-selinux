@@ -221,6 +221,26 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# WiFi Step 7 -- Claude Desktop Wayland flags + autostart
+# ---------------------------------------------------------------------------
+echo "--- WiFi Step 7: Claude Desktop config ---"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLAUDE_INSTALL="$SCRIPT_DIR/../claude-desktop/install-claude-desktop.sh"
+
+if [[ -f "$CLAUDE_INSTALL" ]]; then
+    # Run as the service user, not root
+    if [[ -n "${SERVICE_USER:-}" ]] && id "$SERVICE_USER" &>/dev/null; then
+        run sudo -u "$SERVICE_USER" bash "$CLAUDE_INSTALL"
+        echo "[OK]  Claude Desktop config deployed for $SERVICE_USER"
+    else
+        echo "[WARN] SERVICE_USER not set -- run manually as desktop user:"
+        echo "       bash claude-desktop/install-claude-desktop.sh"
+    fi
+else
+    echo "[WARN] claude-desktop/install-claude-desktop.sh not found -- skipping"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""
