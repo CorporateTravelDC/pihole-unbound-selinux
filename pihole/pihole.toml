@@ -1,0 +1,36 @@
+# /etc/pihole/pihole.toml
+# Pi-hole v6 -- override-only configuration
+# Fedora 44 -- all architectures
+#
+# This file contains only non-default values.
+# Pi-hole FTL merges this with its built-in defaults at startup.
+#
+# Deploy:
+#   sudo cp pihole/pihole.toml /etc/pihole/pihole.toml
+#   sudo systemctl restart pihole-FTL
+#
+# Replace placeholders:
+#   YOUR_TAILSCALE_IP   -- your Tailscale node IP (100.x.y.z)
+#   YOUR_TAILSCALE_IFACE -- usually tailscale0
+
+[dns]
+# Upstream resolver -- Unbound running on localhost:5335
+upstreams = ["127.0.0.1#5335"]
+
+# Listening mode: bind only to the specified interface
+listeningMode = "SINGLE"
+interface = "YOUR_TAILSCALE_IFACE"
+
+# Do not use DHCP-pushed resolvers or systemd-resolved
+# (systemd-resolved is fully disabled on this stack)
+
+[database]
+# Disable query log database writes to eliminate SQLite write pressure
+# on flash storage (SD card / USB drive). Query history will not persist
+# across restarts. Set to a positive integer (days) to re-enable.
+maxDBdays = 0
+
+[webserver]
+# Bind the admin web UI to loopback only.
+# Access via SSH tunnel or Tailscale reverse proxy as needed.
+domain = "YOUR_HOSTNAME"
