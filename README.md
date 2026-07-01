@@ -12,6 +12,9 @@ Tested on:
 
 ---
 
+> ALL Public Commits are GPG signed by key (pubkey included in this repo): ABD3976FCC006E0F3FE559177286B3118BA4EFB2 
+
+
 ## Hardening script variants
 
 This repo ships two hardening scripts. Choose the one that matches your
