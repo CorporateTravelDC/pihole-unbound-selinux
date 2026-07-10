@@ -122,11 +122,11 @@ if [[ "$SKIP_SSH" == false ]]; then
     echo "--- Step 1: SSH hardening ---"
 
     SSHD_CONF="/etc/ssh/sshd_config"
-    SSHD_DROP="/etc/ssh/sshd_config.d/99-csexec-harden.conf"
+    SSHD_DROP="/etc/ssh/sshd_config.d/99-corporatetraveldc-harden.conf"
 
     # Write a drop-in rather than editing the main file
     run tee "$SSHD_DROP" > /dev/null << 'SSHCONF'
-# 99-csexec-harden.conf
+# 99-corporatetraveldc-harden.conf
 # Applied by harden.sh -- do not edit manually
 
 # Disable reverse DNS lookups on connect (eliminates delay on untrusted networks)
@@ -176,8 +176,8 @@ fi
 # ---------------------------------------------------------------------------
 echo "--- Step 2: sysctl hardening ---"
 
-run tee /etc/sysctl.d/99-csexec-harden.conf > /dev/null << 'SYSCTL'
-# 99-csexec-harden.conf
+run tee /etc/sysctl.d/99-corporatetraveldc-harden.conf > /dev/null << 'SYSCTL'
+# 99-corporatetraveldc-harden.conf
 # Applied by harden.sh
 
 # Network -- disable IP source routing and redirects
@@ -296,7 +296,7 @@ if ! command -v fail2ban-server &>/dev/null; then
 fi
 
 # Write a minimal jail for SSH
-run tee /etc/fail2ban/jail.d/sshd-csexec.conf > /dev/null << 'F2B'
+run tee /etc/fail2ban/jail.d/sshd-corporatetraveldc.conf > /dev/null << 'F2B'
 [sshd]
 enabled  = true
 port     = ssh
@@ -333,8 +333,8 @@ echo ""
 echo "=== Hardening complete ==="
 echo ""
 echo "  Arch:      $ARCH"
-echo "  SSH:       /etc/ssh/sshd_config.d/99-csexec-harden.conf"
-echo "  sysctl:    /etc/sysctl.d/99-csexec-harden.conf"
+echo "  SSH:       /etc/ssh/sshd_config.d/99-corporatetraveldc-harden.conf"
+echo "  sysctl:    /etc/sysctl.d/99-corporatetraveldc-harden.conf"
 echo "  resolv:    /etc/resolv.conf (immutable, 127.0.0.1)"
 echo "  firewalld: $(firewall-cmd --list-all 2>/dev/null | head -1 || echo 'check manually')"
 echo "  fail2ban:  $(systemctl is-active fail2ban 2>/dev/null || echo 'check status')"

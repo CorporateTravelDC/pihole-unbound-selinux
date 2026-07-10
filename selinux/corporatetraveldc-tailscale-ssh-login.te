@@ -1,0 +1,13 @@
+module corporatetraveldc-tailscale-ssh-login 1.0;
+
+require {
+	type unconfined_service_t;
+	type unconfined_t;
+	class process transition;
+}
+
+#============= unconfined_service_t ==============
+# Permit tailscaled (running unlabeled as unconfined_service_t, since
+# Fedora ships no policy for it) to transition into unconfined_t when
+# it execs `login --` for a Tailscale SSH session.
+allow unconfined_service_t unconfined_t:process transition;

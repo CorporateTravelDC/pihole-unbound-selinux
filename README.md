@@ -113,11 +113,20 @@ pihole/
 unbound/
   unbound.conf                   Unbound recursive resolver config
 selinux/
-  apply-selinux-policy.sh        Policy compiler + labeler (idempotent)
-  label-dns-port.sh              semanage dns_port_t for port 5335
-  csexec-logind-userns.te        systemd-logind userns allow
-  csexec-tailscaled.te           Tailscale AVC allows
-  csexec-virtqemud.te            virt-qemud home dir access
+  apply-selinux-policy.sh                Policy compiler + labeler (idempotent)
+  label-dns-port.sh                      semanage dns_port_t for port 5335
+  corporatetraveldc-logind-userns.te     systemd-logind userns allow
+  corporatetraveldc-tailscaled.te        Tailscale AVC allows
+  corporatetraveldc-virtqemud.te         virt-qemud home dir access
+  corporatetraveldc-pihole-local.te      pihole_t local allows + httpd_t -> pihole_port_t (nginx :80)
+  corporatetraveldc-tailscale-ssh-login.te  Tailscale SSH login session allows
+```
+Pi-hole's own webserver port (8091) and every other nginx `proxy_pass`
+target are labeled by `ctdi-dispatch-internal/selinux/label-nginx-backend-ports.sh`,
+not by this repo -- that repo owns the vhost list, so it's the single source
+of truth for which backend ports nginx is allowed to reach. Run it too
+before re-enabling enforcing.
+```
 scripts/
   harden.sh                      Wired host hardening baseline
   harden-wifi.sh                 WiFi host hardening (superset of harden.sh)

@@ -1,0 +1,98 @@
+
+module corporatetraveldc-pihole-local 1.0;
+
+require {
+	type xdm_var_run_t;
+	type proc_net_t;
+	type sysctl_net_t;
+	type fs_t;
+	type usr_t;
+	type pihole_t;
+	type io_uring_t;
+	type shell_exec_t;
+	type cert_t;
+	type httpd_sys_content_t;
+	type systemd_userdbd_t;
+	type sssd_public_t;
+	type tmp_t;
+	type passwd_file_t;
+	type sssd_var_lib_t;
+	type xdm_t;
+	type systemd_userdbd_runtime_t;
+	type pihole_exec_t;
+	type bin_t;
+	type proc_t;
+	type net_conf_t;
+	type dnsmasq_etc_t;
+	type systemd_machined_t;
+	type http_port_t;
+	type httpd_t;
+	type pihole_port_t;
+	class netlink_route_socket setopt;
+	class unix_dgram_socket { create ioctl connect };
+	class process { setfscreate setpgid };
+	class filesystem getattr;
+	class file { create execute execute_no_trans getattr map open read setattr unlink write };
+	class dir { add_name getattr open read remove_name search write };
+	class lnk_file read;
+	class anon_inode { create map read write };
+	class sock_file write;
+	class unix_stream_socket connectto;
+	class tcp_socket name_bind;
+}
+
+#============= pihole_t ==============
+allow pihole_t bin_t:file { execute execute_no_trans };
+
+#!!!! This avc can be allowed using the boolean 'domain_can_mmap_files'
+allow pihole_t bin_t:file map;
+allow pihole_t cert_t:dir { getattr open read search };
+allow pihole_t cert_t:file { getattr open read };
+allow pihole_t dnsmasq_etc_t:dir getattr;
+allow pihole_t fs_t:filesystem getattr;
+allow pihole_t http_port_t:tcp_socket name_bind;
+allow pihole_t httpd_sys_content_t:file { getattr open read };
+
+#!!!! This avc can be allowed using the boolean 'domain_can_mmap_files'
+allow pihole_t httpd_sys_content_t:file map;
+allow pihole_t io_uring_t:anon_inode { create map read write };
+allow pihole_t net_conf_t:file { getattr open read };
+allow pihole_t passwd_file_t:file { getattr open read };
+allow pihole_t pihole_exec_t:file execute_no_trans;
+allow pihole_t proc_net_t:lnk_file read;
+allow pihole_t proc_t:file { open read };
+allow pihole_t self:netlink_route_socket setopt;
+allow pihole_t self:process { setfscreate setpgid };
+allow pihole_t self:unix_dgram_socket { create ioctl connect };
+allow pihole_t shell_exec_t:file { execute execute_no_trans };
+
+#!!!! This avc can be allowed using the boolean 'domain_can_mmap_files'
+allow pihole_t shell_exec_t:file map;
+allow pihole_t sssd_public_t:dir search;
+allow pihole_t sssd_var_lib_t:dir search;
+allow pihole_t sysctl_net_t:dir search;
+allow pihole_t sysctl_net_t:file { getattr open read };
+
+#!!!! This avc can be allowed using the boolean 'daemons_enable_cluster_mode'
+allow pihole_t systemd_machined_t:unix_stream_socket connectto;
+allow pihole_t systemd_userdbd_runtime_t:dir { getattr open read search };
+allow pihole_t systemd_userdbd_runtime_t:lnk_file read;
+allow pihole_t systemd_userdbd_runtime_t:sock_file write;
+
+#!!!! This avc can be allowed using the boolean 'daemons_enable_cluster_mode'
+allow pihole_t systemd_userdbd_t:unix_stream_socket connectto;
+allow pihole_t tmp_t:dir { add_name read remove_name write };
+allow pihole_t tmp_t:file { create open setattr unlink write };
+allow pihole_t usr_t:file { execute execute_no_trans };
+allow pihole_t xdm_t:unix_stream_socket connectto;
+allow pihole_t xdm_var_run_t:sock_file write;
+
+#============= httpd_t ==============
+# Host nginx (ctdi-dispatch-internal/nginx/conf.d/*.csexecutiveservices.com.conf)
+# is the single front door on :80 for 7 vhosts, including
+# pihole.csexecutiveservices.com, which it reverse-proxies to pihole's own
+# webserver on 127.0.0.1:8091. Port 80 itself is labeled pihole_port_t
+# (georou/pihole-selinux), so httpd_t needs an explicit allow to bind it --
+# without this every vhost nginx fronts fails to bind under enforcing, not
+# just Pi-hole's.
+allow httpd_t pihole_port_t:tcp_socket name_bind;

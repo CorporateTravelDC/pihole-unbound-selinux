@@ -81,15 +81,15 @@ echo ""
 echo "--- Step 1: tailscaled policy ---"
 if seinfo -t 2>/dev/null | grep -q "tailscaled_t"; then
     echo "[OK]  upstream tailscaled_t present"
-    if semodule -l 2>/dev/null | grep -q "^csexec-tailscaled$"; then
-        run semodule -r csexec-tailscaled
+    if semodule -l 2>/dev/null | grep -q "^corporatetraveldc-tailscaled$"; then
+        run semodule -r corporatetraveldc-tailscaled
     fi
 else
     if dnf info tailscale-selinux &>/dev/null 2>&1; then
         run dnf install -y tailscale-selinux
         run restorecon -v "$(command -v tailscaled 2>/dev/null || echo /usr/sbin/tailscaled)"
     else
-        build_and_load_module "csexec-tailscaled"
+        build_and_load_module "corporatetraveldc-tailscaled"
     fi
 fi
 
@@ -97,8 +97,10 @@ fi
 # Step 2 -- TE modules
 # ---------------------------------------------------------------------------
 echo "--- Step 2: TE modules ---"
-build_and_load_module "csexec-logind-userns"
-build_and_load_module "csexec-virtqemud"
+build_and_load_module "corporatetraveldc-logind-userns"
+build_and_load_module "corporatetraveldc-virtqemud"
+build_and_load_module "corporatetraveldc-pihole-local"
+build_and_load_module "corporatetraveldc-tailscale-ssh-login"
 
 # ---------------------------------------------------------------------------
 # Step 3 -- Relabel Pi-hole and Unbound paths
@@ -126,11 +128,24 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 5 -- Verify
+# Step 5 -- Port labels (DNS)
+# Port 80 itself is covered by the httpd_t allow in corporatetraveldc-pihole-local.te
+# (Step 2), since nginx fronts it directly. Port 5335 (Unbound) needs an
+# explicit port label, done here. Pi-hole's own webserver port (8091) and
+# every other nginx proxy_pass target are labeled by
+# ctdi-dispatch-internal/selinux/label-nginx-backend-ports.sh -- that repo
+# owns the vhost list (nginx/conf.d/), so it's the source of truth for which
+# backend ports exist. Run that script too before re-enabling enforcing.
+# ---------------------------------------------------------------------------
+echo "--- Step 5: port labels ---"
+run bash "${SCRIPT_DIR}/label-dns-port.sh" $([[ "$DRY_RUN" == true ]] && echo --dry-run)
+
+# ---------------------------------------------------------------------------
+# Step 6 -- Verify
 # ---------------------------------------------------------------------------
 echo ""
-echo "--- Step 5: Verify ---"
-for mod in csexec-logind-userns; do
+echo "--- Step 6: Verify ---"
+for mod in corporatetraveldc-logind-userns corporatetraveldc-pihole-local corporatetraveldc-tailscale-ssh-login; do
     semodule -l 2>/dev/null | grep -q "^${mod}$" \
         && echo "[OK]  module: ${mod}" \
         || echo "[WARN] module: ${mod} -- not loaded (may not apply to this host)"
@@ -138,5 +153,7 @@ done
 
 echo ""
 echo "[OK]  Apply complete."
-echo "[INFO] Next: run selinux/label-dns-port.sh to label port 5335"
+echo "[INFO] Also run ctdi-dispatch-internal/selinux/apply-selinux-policy.sh on this"
+echo "       host -- it fixes the dumpvdl2/readsb USB-SDR denials that hit the same"
+echo "       enforcing boot. Both must be applied before re-enabling enforcing."
 echo "[INFO] Then: sudo setenforce 1 && sudo touch /.autorelabel && sudo reboot"
