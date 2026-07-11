@@ -18,8 +18,16 @@
 [Unit]
 Description=Refresh Unbound DNSSEC anchor after network is up
 After=network-online.target unbound.service
-Wants=network-online.target
-Requires=unbound.service
+Wants=network-online.target unbound.service
+# Wants=, not Requires=, for unbound.service: this unit's own ExecStart
+# ends with `systemctl restart unbound`. Requires= means "if the required
+# unit deactivates, deactivate me too" -- so restarting unbound.service
+# from inside this unit's own script caused systemd to immediately
+# SIGTERM this unit mid-script (confirmed live 2026-07-11: it "failed"
+# with status=15/TERM every single run, ~12s in, right after issuing the
+# restart, even though the anchor refresh + unbound restart both actually
+# succeeded). Wants= keeps the same startup ordering (After= above) without
+# the self-kill.
 
 [Service]
 Type=oneshot

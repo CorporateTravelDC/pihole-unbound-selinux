@@ -1,0 +1,32 @@
+# /etc/systemd/system/unbound-cache-warmup.service
+#
+# PURPOSE:
+#   Fires once per boot, after unbound-anchor-refresh.service has finished
+#   (which restarts Unbound with a fresh anchor -- warming the cache before
+#   that restart would just get wiped). Pre-queries the stack's own vhosts
+#   plus a couple of critical infra domains (NTP, Tailscale control plane)
+#   so the first real client requests don't pay for a cold recursive walk.
+#
+#   Belt-and-suspenders alongside unbound.conf's prefetch/serve-expired
+#   settings for the cold-start recursion delay seen on Enforcing reboots.
+#
+# DEPLOY:
+#   sudo cp scripts/unbound-cache-warmup.sh /usr/local/sbin/unbound-cache-warmup.sh
+#   sudo chmod +x /usr/local/sbin/unbound-cache-warmup.sh
+#   sudo cp systemd/unbound-cache-warmup.service \
+#        /etc/systemd/system/unbound-cache-warmup.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable unbound-cache-warmup.service
+
+[Unit]
+Description=Warm Unbound's recursive cache after boot
+After=unbound-anchor-refresh.service
+Requires=unbound-anchor-refresh.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/unbound-cache-warmup.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

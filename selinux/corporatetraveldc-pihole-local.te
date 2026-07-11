@@ -28,9 +28,10 @@ require {
 	type http_port_t;
 	type httpd_t;
 	type pihole_port_t;
-	class netlink_route_socket setopt;
+	class netlink_route_socket { setopt read write };
 	class unix_dgram_socket { create ioctl connect };
 	class process { setfscreate setpgid };
+	class capability { net_admin sys_nice };
 	class filesystem getattr;
 	class file { create execute execute_no_trans getattr map open read setattr unlink write };
 	class dir { add_name getattr open read remove_name search write };
@@ -61,9 +62,38 @@ allow pihole_t passwd_file_t:file { getattr open read };
 allow pihole_t pihole_exec_t:file execute_no_trans;
 allow pihole_t proc_net_t:lnk_file read;
 allow pihole_t proc_t:file { open read };
-allow pihole_t self:netlink_route_socket setopt;
+allow pihole_t self:netlink_route_socket { setopt read write };
 allow pihole_t self:process { setfscreate setpgid };
 allow pihole_t self:unix_dgram_socket { create ioctl connect };
+# net_admin: dnsmasq (embedded in pihole-FTL) needs this to enumerate
+# network interfaces at startup. The systemd unit already grants the raw
+# Linux capability (AmbientCapabilities=... CAP_NET_ADMIN ...), but SELinux
+# gates capability USE separately -- pihole_t didn't have it, and the base
+# policy has an explicit `dontaudit pihole_t self:capability net_admin`
+# rule, so the denial never appeared in the audit log even though it was
+# genuinely blocking. Confirmed live 2026-07-10: "dnsmasq: failed to find
+# list of interfaces: Permission denied" on the first real enforcing boot,
+# breaking DNS resolution entirely -- silent because of the dontaudit rule.
+# sys_nice: same dontaudit pattern, lower severity (pihole-FTL just runs at
+# normal priority instead of -10 -- "Insufficient permissions to set
+# process priority" warning, not fatal, but the same fix closes it too.
+allow pihole_t self:capability { net_admin sys_nice };
+# netlink_route_socket read/write: the net_admin capability grant above was
+# necessary but NOT sufficient -- confirmed live 2026-07-10, identical
+# failure recurred on a second enforcing reboot even with net_admin/sys_nice
+# confirmed loaded (`sesearch -A -s pihole_t -c capability`). Root cause is
+# a SECOND, independent dontaudit rule on a different object class:
+# `dontaudit domain domain:netlink_route_socket { read write };` in the
+# base policy (applies to every domain via the `domain` attribute, not
+# pihole-specific). The base pihole-selinux module already grants
+# bind/create/getattr/nlmsg_read on this socket class but never write --
+# and dnsmasq must sendmsg() an RTM_GETLINK request (gated by generic
+# socket `write`) before it can ever receive the nlmsg_read'd reply. That
+# sendmsg() was silently failing with EPERM, which is exactly
+# "failed to find list of interfaces: Permission denied". Same silent
+# dontaudit pattern as net_admin above -- explains why no second AVC ever
+# appeared in the audit log despite the first fix being correctly loaded.
+allow pihole_t self:netlink_route_socket { read write };
 allow pihole_t shell_exec_t:file { execute execute_no_trans };
 
 #!!!! This avc can be allowed using the boolean 'domain_can_mmap_files'
