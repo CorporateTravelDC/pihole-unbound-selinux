@@ -104,6 +104,6 @@ Requires reboot to take effect.
 
 ### Unbound fails to bind: "cannot assign requested address"
 
-Caused by `interface: 100.94.80.100` in unbound.conf -- Tailscale IP
+Caused by `interface: 100.x.x.x` in unbound.conf -- Tailscale IP
 is not assigned at Unbound start time. Fixed by removing that interface
 line. Unbound now binds to loopback only.

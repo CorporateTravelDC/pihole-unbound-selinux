@@ -21,16 +21,16 @@ PORT="5335"
 # public-facing tunnel and internal nginx reverse proxy resolve on every
 # request.
 DOMAINS=(
-    csexecutiveservices.com
-    www.csexecutiveservices.com
-    dispatch.csexecutiveservices.com
-    ops.csexecutiveservices.com
-    openwebui.csexecutiveservices.com
-    ollama.csexecutiveservices.com
-    adsb.csexecutiveservices.com
-    acars.csexecutiveservices.com
-    ntfy.csexecutiveservices.com
-    pihole.csexecutiveservices.com
+    example.com
+    www.example.com
+    dispatch.example.com
+    ops.example.com
+    openwebui.example.com
+    ollama.example.com
+    adsb.example.com
+    acars.example.com
+    ntfy.example.com
+    pihole.example.com
     # chrony (/etc/chrony.conf: pool 2.fedora.pool.ntp.org)
     2.fedora.pool.ntp.org
     # tailscaled control plane

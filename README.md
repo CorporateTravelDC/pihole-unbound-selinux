@@ -148,7 +148,7 @@ docs/
 
 | Placeholder | Value |
 |---|---|
-| `100.94.80.100` | Tailscale node IP |
+| `100.x.x.x` | Tailscale node IP |
 | `tailscale0` | Tailscale interface name |
 | `corporatetraveldc-dispatch` | Hostname |
 | `corporatetraveldc` | Service/admin user |

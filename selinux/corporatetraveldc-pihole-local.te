@@ -118,9 +118,9 @@ allow pihole_t xdm_t:unix_stream_socket connectto;
 allow pihole_t xdm_var_run_t:sock_file write;
 
 #============= httpd_t ==============
-# Host nginx (ctdi-dispatch-internal/nginx/conf.d/*.csexecutiveservices.com.conf)
+# Host nginx (ctdi-dispatch-internal/nginx/conf.d/*.example.com.conf)
 # is the single front door on :80 for 7 vhosts, including
-# pihole.csexecutiveservices.com, which it reverse-proxies to pihole's own
+# pihole.example.com, which it reverse-proxies to pihole's own
 # webserver on 127.0.0.1:8091. Port 80 itself is labeled pihole_port_t
 # (georou/pihole-selinux), so httpd_t needs an explicit allow to bind it --
 # without this every vhost nginx fronts fails to bind under enforcing, not
