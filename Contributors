@@ -1,6 +1,6 @@
 Special Thaks for the following github projects/authors and external contributors for their help.
 
-Thomas Eibner
-https://github.com/thomaseibner 
-Thanks for your heavy lift and assistance retooling Hold and diversion detection among other code reviews of the project
-
+Georou
+https://github.com/georou/pihole-selinux
+Core Submodule allowing for the hardened baseline for DNS Filtering/Blocking while under SELinux
+Personal Blog: https://tellmeaboot.com
