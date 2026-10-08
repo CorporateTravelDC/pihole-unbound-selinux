@@ -35,6 +35,42 @@ DOMAINS=(
     2.fedora.pool.ntp.org
     # tailscaled control plane
     controlplane.tailscale.com
+
+    # 2026-08-05: external operational data-source domains -- the dispatch
+    # platform's own poller/fetchers/skills depend on these for real work
+    # (weather, FAA feeds, ACARS/airframes aggregator, Amtrak, AAM trade
+    # press), but until now nothing ever warmed them, so the FIRST poll
+    # after a cold cache (boot, or just an expired/never-cached entry) paid
+    # the full recursive-walk cost -- this is what was actually timing out
+    # in direct dig tests. Extracted from real fetcher/skill source
+    # (grep for http(s):// across src/poller/fetchers, src/poller/skills,
+    # src/acars_watcher, src/shared/rss_catalog.py), not guessed. Scoped to
+    # the operational/data-feed domains that actually gate dispatch
+    # functionality -- NOT the long tail of general travel/aviation trade-
+    # press RSS blogs (aviationsourcenews.com, crankyflier.com, etc.) also
+    # present in rss_catalog.py, which are lower-value background churn,
+    # not latency-sensitive.
+    aviationweather.gov
+    api.weather.gov
+    notams.aim.faa.gov
+    tfr.faa.gov
+    nasstatus.faa.gov
+    registry.faa.gov
+    www.faa.gov
+    www.fly.faa.gov
+    api.faa.gov
+    api.amtraker.com
+    api.airframes.io
+    api.jumpseat.acarsdrama.com
+    opensky-network.org
+    s3.opensky-network.org
+    urbanairmobilitynews.com
+    uasweekly.com
+    # EUROCONTROL/JASDAT -- awaiting_credentials as of this writing, but
+    # cheap to warm now so DNS isn't also cold on the day credentials land.
+    www.eurocontrol.int
+    www.b2b.opsnetwork.eurocontrol.int
+    www.jasdat.go.jp
 )
 
 for d in "${DOMAINS[@]}"; do
