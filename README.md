@@ -1,7 +1,6 @@
 # pihole-unbound-selinux-internal
 
-> **INTERNAL** -- Real values pre-applied. This repo is private.
-> Do not push to a public remote or share credentials from this file.
+> **Sanitized public view** -- Real values pre-applied. This repo is deliberately a public reference.
 
 Pi-hole v6 + Unbound recursive resolver + SELinux enforcing -- Fedora 43+.
 
