@@ -1,6 +1,6 @@
 # pihole-unbound-selinux-internal
 
-> **Sanitized public view** -- Real values pre-applied. This repo is deliberately a public reference.
+> Sanitized public reference. All addresses, hostnames and keys are placeholders; substitute your own.
 
 Pi-hole v6 + Unbound recursive resolver + SELinux enforcing -- Fedora 43+.
 
